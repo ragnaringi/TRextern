@@ -11,7 +11,13 @@
 #include <assert.h>
 #include <vector>
 #include <string>
+//#ifdef PD
 #include "m_pd.h"
+//#endif
+//#ifdef MSP
+//#endif
+
+using namespace std;
 
 //! Pointer to class
 static t_class *m_class;
@@ -27,9 +33,10 @@ typedef struct _external {
 
 //! Base external object
 struct RMExternal {
-public:
+  public:
   t_object* mObject; // Pointer to internal object-properties. Do not use.
   
+  //! TODO: Static create method passing object
   RMExternal();
   virtual ~RMExternal();
   
@@ -44,13 +51,44 @@ public:
   virtual void  setupIO( int inChannels, int outChannels ) final;
   
   // Get number of audio ins/outs
-  int const inChannelCount()  const { return mInChannels; }
+  int const inChannelCount()  const { return mInChannels;  }
   int const outChannelCount() const { return mOutChannels; }
   
   // Control in/out
-  void      addInletBang(void);
-  void      addInletFloat( float *f = nullptr );
-  void      addInletSymbol();
+  //! Inlets
+  class RMInlet;
+  using InletRef = std::shared_ptr<RMInlet>;
+  
+  InletRef   addInletBang  ( string identifier );
+  //! Passing optional value pointer creates a passive inlet
+  InletRef   addInletFloat ( string identifier, t_float * f = nullptr );
+  InletRef   addInletSymbol( string identifier, t_symbol* s = nullptr );
+  
+  const vector<InletRef>& getInlets() { return mInlets; }
+  
+  //! Receivers
+  virtual void  bangReceived ( InletRef inlet ) {}
+  virtual void  floatReceived( InletRef inlet, float value ) {}
+  
+  //!
+  class RMInlet {
+    public:
+    //!
+    template<t_symbol* Type>
+    static InletRef create( t_inlet* inlet, string identifier ) {
+      return create(inlet, Type, identifier);
+    }
+    static InletRef create( t_inlet* inlet, t_symbol* type, string identifier );
+    ~RMInlet();
+    //!
+    string      getId()   const { return mId; }
+    t_symbol*   getType() const { return mType; }
+    protected:
+    RMInlet() {};
+    string      mId;
+    t_symbol*   mType;
+    t_inlet*    mInlet;
+  };
   
 protected:
   
@@ -58,7 +96,7 @@ private:
   void    cleanup();
   int     mInChannels;
   int     mOutChannels;
-  std::vector<t_inlet *>  mInlets;
+  std::vector<InletRef>  mInlets;
   std::vector<t_outlet *> mOutlets;
 };
 
@@ -67,16 +105,36 @@ private:
 void  ext_dsp( t_external *x, t_signal **sp );
 void *ext_new( t_symbol *s, int argc, t_atom *argv );
 
-
-//------------------------------------------------------------------------------
-void ext_float( t_external *x, float f ) {
-  post("float = %f", f);
+//! Bang receivers
+typedef void (*t_bangfunc) (t_external *);
+#define addBangFunc(num) \
+void ext_bangin_##num( t_external *x ) { \
+  auto impl = x->impl; \
+  impl->bangReceived( impl->getInlets()[num-1] ); \
 }
+addBangFunc(1)
+addBangFunc(2)
+addBangFunc(3)
+addBangFunc(4)
+addBangFunc(5)
+static vector<t_bangfunc> bangfuncs = { ext_bangin_1, ext_bangin_2, ext_bangin_3, ext_bangin_4, ext_bangin_5 };
 
-void ext_bang( t_external *x ) {
-  post("bang");
+//! Float receivers
+typedef void (*t_floatfunc)(t_external *, float);
+#define addFloatFunc(num) \
+void ext_floatin_##num( t_external *x, float f ) { \
+  auto impl = x->impl; \
+  impl->floatReceived( impl->getInlets()[num-1], f ); \
 }
+addFloatFunc(1)
+addFloatFunc(2)
+addFloatFunc(3)
+addFloatFunc(4)
+addFloatFunc(5)
+static vector<t_floatfunc> floatfuncs = { ext_floatin_1, ext_floatin_2, ext_floatin_3, ext_floatin_4, ext_floatin_5 };
 
+
+//!
 //------------------------------------------------------------------------------
 RMExternal::RMExternal() : mInChannels(0), mOutChannels(0) {}
 
@@ -90,8 +148,9 @@ void RMExternal::setupIO( int inChannels, int outChannels ) {
   class_addmethod( m_class, (t_method)ext_dsp, gensym("dsp"), A_NULL );
   
   for ( auto i = 0; i < inChannels; i++ ) {
-    auto inlet = inlet_new( mObject, &mObject->ob_pd, &s_signal, &s_signal );
-    mInlets.push_back( inlet );
+    auto signal = &s_signal;
+    auto it = inlet_new( mObject, &mObject->ob_pd, signal, signal );
+    mInlets.push_back( RMInlet::create( it, signal, "SignalIn " + std::to_string(i+1) ) );
   }
   
   for ( auto i = 0; i < outChannels; i++ ) {
@@ -103,33 +162,60 @@ void RMExternal::setupIO( int inChannels, int outChannels ) {
 }
 
 //------------------------------------------------------------------------------
-void RMExternal::addInletBang() {
-  inlet_new( mObject, &mObject->ob_pd, &s_bang, &s_bang );
-  class_addbang( m_class, ext_bang );
+RMExternal::InletRef RMExternal::addInletBang( string identifier ) {
+  auto idx    = mInlets.size();
+  auto symbol = gensym(("ext_bangin_" + to_string(idx+1)).c_str());
+  auto func   = (t_method)bangfuncs[idx];
+  class_addmethod( m_class, func, symbol, A_NULL );
+  auto bang = &s_bang;
+  auto inlet = inlet_new( mObject, &mObject->ob_pd, bang, symbol );
+  mInlets.push_back( RMInlet::create( inlet, bang, identifier ) );
+  return mInlets.back();
 }
 
 //------------------------------------------------------------------------------
-void RMExternal::addInletFloat( float *f ) {
+RMExternal::InletRef RMExternal::addInletFloat( string identifier, float *f ) {
+  t_inlet* it = nullptr;
   if ( f ) {
-    mInlets.push_back( floatinlet_new( mObject, f ) );
+    it = floatinlet_new( mObject, f );
+    return nullptr;
   } else {
-    inlet_new( mObject, &mObject->ob_pd, &s_float, &s_float );
-    class_addfloat( m_class, ext_float );
-    class_addbang( m_class, ext_bang );
+    auto idx    = mInlets.size();
+    auto symbol = gensym(("ext_floatin_" + to_string(idx+1)).c_str());
+    auto func   = (t_method)floatfuncs[idx];
+    class_addmethod( m_class, func, symbol, A_FLOAT, A_NULL );
+    it = inlet_new( mObject, &mObject->ob_pd, &s_float, symbol );
   }
+  mInlets.push_back( RMInlet::create( it, &s_float, identifier ) );
+  return mInlets.back();
 }
 
 //------------------------------------------------------------------------------
 void RMExternal::cleanup() {
   post("Cleaning up");
-  for ( auto i = 1; i < mInlets.size(); i++ ) { inlet_free( mInlets[i] ); }
   for ( auto o : mOutlets ) { outlet_free( o ); }
   mInlets.clear();
   mOutlets.clear();
   exit();
 }
 
-//!
+//! RMInlet
+//------------------------------------------------------------------------------
+RMExternal::InletRef RMExternal::RMInlet::create( t_inlet* inlet, t_symbol* type, string identifier ) {
+  auto i = new RMInlet;
+  i->mInlet = inlet;
+  i->mType  = type;
+  i->mId    = identifier;
+  return InletRef( i );
+}
+
+//------------------------------------------------------------------------------
+RMExternal::RMInlet::~RMInlet() {
+  post("Deleting inlet");
+  inlet_free( mInlet );
+}
+
+//! Pd
 //------------------------------------------------------------------------------
 t_int *ext_perform( t_int *w ) {
   size_t vIndex = 1;
