@@ -54,7 +54,7 @@ struct RMExternal {
   int const inChannelCount()  const { return mInChannels;  }
   int const outChannelCount() const { return mOutChannels; }
   
-  // Control in/out
+  //! Control in/out
   //! Inlets
   class RMInlet;
   using InletRef  = std::shared_ptr<RMInlet>;
@@ -76,9 +76,7 @@ struct RMExternal {
   class RMOutlet;
   using OutletRef = std::shared_ptr<RMOutlet>;
   
-//  OutletRef   addOutletBang  ( string identifier );
-//  OutletRef   addOutletFloat ( string identifier, t_float * f = nullptr );
-//  OutletRef   addOutletSymbol( string identifier, t_symbol* s = nullptr );
+  OutletRef   addOutlet( string identifier );
   
   const vector<OutletRef>& getOutlets() { return mOutlets; }
   
@@ -88,10 +86,10 @@ struct RMExternal {
     //!
     static InletRef create( t_inlet* inlet, t_symbol* type, string identifier );
     ~RMInlet();
-    string          getId()   const { return mId; }
+    const string&   getId()   const { return mId; }
     t_symbol*       getType() const { return mType; }
     private:
-    RMInlet();
+    RMInlet()   {};
     string      mId;
     t_symbol*   mType;
     t_inlet*    mInlet;
@@ -101,13 +99,16 @@ struct RMExternal {
   class RMOutlet {
   public:
     //!
-    static OutletRef create( t_outlet* outlet, t_symbol* type, string identifier );
+    static OutletRef create( t_outlet* outlet );
     ~RMOutlet();
-    string          getId()   const { return mId; }
-    t_symbol*       getType() const { return outlet_getsymbol(mOutlet); }
+    const string  getId() { return string(outlet_getsymbol(mOutlet)->s_name); }
+    void          sendBang();
+    void          sendFloat( float f );
+    void          sendSymbol( t_symbol *s );
+    //void          sendList( t_symbol *s );
+    bool          isSignal() { return outlet_getsymbol(mOutlet) == &s_signal; }
     private:
-    RMOutlet();
-    string       mId;
+    RMOutlet()   {};
     t_outlet*    mOutlet;
   };
   
@@ -121,8 +122,8 @@ private:
   void    cleanup();
   int     mInChannels;
   int     mOutChannels;
-  std::vector<InletRef>   mInlets;
-  std::vector<OutletRef> mOutlets;
+  vector<InletRef>  mInlets;
+  vector<OutletRef> mOutlets;
 };
 
 
@@ -142,7 +143,17 @@ addBangFunc(2)
 addBangFunc(3)
 addBangFunc(4)
 addBangFunc(5)
-static vector<t_bangfunc> bangfuncs = { ext_bangin_1, ext_bangin_2, ext_bangin_3, ext_bangin_4, ext_bangin_5 };
+addBangFunc(6)
+addBangFunc(7)
+static vector<t_bangfunc> bangfuncs = {
+  ext_bangin_1,
+  ext_bangin_2,
+  ext_bangin_3,
+  ext_bangin_4,
+  ext_bangin_5,
+  ext_bangin_6,
+  ext_bangin_7
+};
 
 //! Float receivers
 typedef void (*t_floatfunc)(t_external *, float);
@@ -156,8 +167,19 @@ addFloatFunc(2)
 addFloatFunc(3)
 addFloatFunc(4)
 addFloatFunc(5)
-static vector<t_floatfunc> floatfuncs = { ext_floatin_1, ext_floatin_2, ext_floatin_3, ext_floatin_4, ext_floatin_5 };
+addFloatFunc(6)
+addFloatFunc(7)
+static vector<t_floatfunc> floatfuncs = {
+  ext_floatin_1,
+  ext_floatin_2,
+  ext_floatin_3,
+  ext_floatin_4,
+  ext_floatin_5,
+  ext_floatin_6,
+  ext_floatin_7
+};
 
+//! Symbol receivers
 typedef void (*t_symbolfunc)(t_external *, t_symbol*);
 #define addSymbolFunc(num) \
 void ext_symbolin_##num( t_external *x, t_symbol* s ) { \
@@ -169,7 +191,17 @@ addSymbolFunc(2)
 addSymbolFunc(3)
 addSymbolFunc(4)
 addSymbolFunc(5)
-static vector<t_symbolfunc> symbolfuncs = { ext_symbolin_1, ext_symbolin_2, ext_symbolin_3, ext_symbolin_4, ext_symbolin_5 };
+addSymbolFunc(6)
+addSymbolFunc(7)
+static vector<t_symbolfunc> symbolfuncs = {
+  ext_symbolin_1,
+  ext_symbolin_2,
+  ext_symbolin_3,
+  ext_symbolin_4,
+  ext_symbolin_5,
+  ext_symbolin_6,
+  ext_symbolin_7
+};
 
 
 //!
@@ -249,11 +281,19 @@ RMExternal::InletRef RMExternal::addInletSignal( string identifier ) {
   return mInlets.back();
 }
 
+//! Outlets
+//------------------------------------------------------------------------------
+RMExternal::OutletRef RMExternal::addOutlet( string identifier ) {
+  auto ot = outlet_new( mObject, gensym(identifier.c_str()) );
+  mOutlets.push_back( RMOutlet::create( ot ) );
+  return mOutlets.back();
+}
+
 //------------------------------------------------------------------------------
 RMExternal::OutletRef RMExternal::addOutletSignal( string identifier ) {
   auto signal = &s_signal;
   auto ot = outlet_new( mObject, signal );
-  mOutlets.push_back( RMOutlet::create( ot, signal, identifier ) );
+  mOutlets.push_back( RMOutlet::create( ot ) );
   return mOutlets.back();
 }
 
@@ -283,10 +323,9 @@ RMExternal::RMInlet::~RMInlet() {
 
 //! RMOutlet
 //------------------------------------------------------------------------------
-RMExternal::OutletRef RMExternal::RMOutlet::create( t_outlet* outlet, t_symbol* type, string identifier ) {
+RMExternal::OutletRef RMExternal::RMOutlet::create( t_outlet* outlet ) {
   auto i = new RMOutlet;
   i->mOutlet = outlet;
-  i->mId     = identifier;
   return OutletRef( i );
 }
 
@@ -294,6 +333,21 @@ RMExternal::OutletRef RMExternal::RMOutlet::create( t_outlet* outlet, t_symbol* 
 RMExternal::RMOutlet::~RMOutlet() {
   post("Deleting outlet");
   outlet_free( mOutlet );
+}
+
+//------------------------------------------------------------------------------
+void RMExternal::RMOutlet::sendBang() {
+  outlet_bang(mOutlet);
+}
+
+//------------------------------------------------------------------------------
+void RMExternal::RMOutlet::sendFloat(float f) {
+  outlet_float(mOutlet, f);
+}
+
+//------------------------------------------------------------------------------
+void RMExternal::RMOutlet::sendSymbol( t_symbol *s ) {
+  outlet_symbol(mOutlet, s);
 }
 
 //! Pd
