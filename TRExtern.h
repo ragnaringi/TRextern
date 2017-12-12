@@ -8,8 +8,6 @@
 
 #pragma once
 
-//#define PD
-
 #include <vector>
 #include <string>
 #ifdef PD
@@ -151,9 +149,9 @@ typedef struct _external {
 
 
 // Forward declarations and class methods
+void *ext_new( t_symbol *s, int argc, t_atom *argv );
 #ifdef PD
 void  ext_dsp( t_external *x, t_signal **sp );
-void *ext_new( t_symbol *s, int argc, t_atom *argv );
 
 //! Bang receivers
 typedef void (*t_bangfunc) (t_external *);
@@ -589,6 +587,46 @@ void ext_free( t_external *x ) {
   delete x->impl;
 }
 
+//------------------------------------------------------------------------------
+void tr_initialise( const char* title ) {
+#ifdef PD
+  m_class = class_new(gensym(title),
+                      (t_newmethod)ext_new,
+                      (t_method)ext_free,
+                      sizeof(t_external),
+                      CLASS_NOINLET,
+                      A_GIMME,
+                      A_NULL);
+#else
+  m_class = class_new(title,
+                      (method)ext_new,
+                      (method)ext_free,
+                      sizeof(t_external),
+                      0L,
+                      A_GIMME,
+                      0);
+  class_addmethod(m_class, (method)ext_bangin,  "bang", 0);
+  class_addmethod(m_class, (method)ext_floatin, "float",  A_FLOAT, 0);
+  class_addmethod(m_class, (method)ext_intin,   "int",    A_LONG, 0);
+  class_addmethod(m_class, (method)ext_symbolin,"symbol", A_SYM, 0);
+  //  class_addmethod(m_class, (method)ext_list,     "list", A_GIMME, 0);
+  //  class_addmethod(m_class, (method)ext_anything, "anything", A_GIMME, 0);
+#warning TODO MAX
+  // TODO: Support for non DSP objects
+  // If dsp
+  class_addmethod(m_class, (method)ext_dsp64, "dsp64",  A_CANT, 0);
+  class_dspinit(m_class);
+  // endif
+  class_register(CLASS_BOX, m_class);
+#endif
+}
+
+// Replaces occurences of '_tilde' with ~
+const char* tr_tildefy( string title ) {
+  static string tilde = "_tilde";
+  return title.replace( title.find(tilde), tilde.length(), "~" ).c_str();
+}
+
 #define TREXTERN_CREATE( class ) \
 \
 void *ext_new( t_symbol *s, int argc, t_atom *argv ) { \
@@ -600,4 +638,12 @@ void *ext_new( t_symbol *s, int argc, t_atom *argv ) { \
   x->impl->layoutInOuts(); \
   return (x); \
 } \
-
+\
+extern "C" __attribute__((visibility("default"))) \
+void pan_tilde_setup(void) { \
+  tr_initialise(tr_tildefy(#class)); \
+} \
+\
+void ext_main(void *r) { \
+  tr_initialise(tr_tildefy(#class)); \
+} \
