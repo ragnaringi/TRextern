@@ -24,10 +24,8 @@ using namespace std;
 //! Pointer to class
 static t_class* m_class;
 
-class Inlet;
-using InletRef  = std::shared_ptr<Inlet>;
-class Outlet;
-using OutletRef = std::shared_ptr<Outlet>;
+using InletRef  = std::shared_ptr<class Inlet>;
+using OutletRef = std::shared_ptr<class Outlet>;
 
 //! Base external object
 class TRextern {
@@ -573,3 +571,33 @@ void ext_dsp64(t_external *x, t_object *dsp64, short *count, t_sample samplerate
 }
 
 #endif
+
+//------------------------------------------------------------------------------
+t_external *ext_alloc() {
+#ifdef PD
+  return (t_external *)pd_new(m_class);
+#else
+  return (t_external *)object_alloc(m_class);
+#endif
+}
+
+//------------------------------------------------------------------------------
+void ext_free( t_external *x ) {
+#ifndef PD
+  dsp_free((t_pxobject *)x);
+#endif
+  delete x->impl;
+}
+
+#define TREXTERN_CREATE( class ) \
+\
+void *ext_new( t_symbol *s, int argc, t_atom *argv ) { \
+  t_external *x = ext_alloc(); \
+  x->impl = new class; \
+  x->impl->mObject = &x->x_obj; \
+  x->impl->mParent = x; \
+  x->impl->setup(argc, argv); \
+  x->impl->layoutInOuts(); \
+  return (x); \
+} \
+
