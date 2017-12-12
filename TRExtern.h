@@ -1,6 +1,6 @@
 //
-//  RMExternal.h
-//  RMExternal
+//  TRextern.h
+//  TRextern
 //
 //  Created by Ragnar Hrafnkelsson on 01/12/2017.
 //  Copyright © 2017 Reactify. All rights reserved.
@@ -8,7 +8,8 @@
 
 #pragma once
 
-#include <assert.h>
+//#define PD
+
 #include <vector>
 #include <string>
 #ifdef PD
@@ -18,85 +19,62 @@
 #include "z_dsp.h"
 #endif
 
-#ifdef PD
-typedef float  trfloat;
-#else
-typedef double trfloat;
-#endif
-
 using namespace std;
 
 //! Pointer to class
 static t_class* m_class;
 
-struct RMExternal;
 class Inlet;
 using InletRef  = std::shared_ptr<Inlet>;
 class Outlet;
 using OutletRef = std::shared_ptr<Outlet>;
 
-//! Class dataspace
-typedef struct _external {
-#ifdef PD
-  t_object    x_obj; // Internal object-properties
-#else
-  t_pxobject  x_obj;
-  long        m_in;    // space for the inlet number used by all the proxies
-#endif
-  RMExternal*   impl;
-} t_external;
-
-
 //! Base external object
-struct RMExternal {
-  public:
-#ifdef PD
-  t_object* mObject;   // Pointer to internal object-properties. Do not use.
-#else
-  t_pxobject* mObject; // Pointer to internal object-properties. Do not use.
-#endif
-  
-  t_external* mParent;
-  
-  //! TODO: Static create method passing object
-  RMExternal();
-  virtual ~RMExternal();
+class TRextern {
+public:
+  TRextern();
+  virtual ~TRextern();
   
   //! Override to perfom setup
   virtual void  setup( int argc, t_atom *argv ) {}
   //! Override to free resources before exit
   virtual void  exit() {}
   //! Override to process audio
-  virtual void  process( float ** inChannels,  float ** outChannels,  int size ) {};
-  virtual void  process( double ** inChannels, double ** outChannels, int size ) {};
+  virtual void  process( t_sample **const inChannels, t_sample **const outChannels, long size ) {};
+  //! Override to receive control values from inlets
+  virtual void  bangReceived  ( InletRef inlet ) {}
+  virtual void  intReceived   ( InletRef inlet, long value ) {}
+  virtual void  floatReceived ( InletRef inlet, t_sample value ) {}
+  virtual void  symbolReceived( InletRef inlet, t_symbol* symbol ) {}
 
-  // Setup audio inlets and outlets
+  // Audio in/out
   virtual void  setupIO( int inChannels, int outChannels ) final;
   
-  // Get number of audio ins/outs
   int const inChannelCount()  const { return mInChannels;  }
   int const outChannelCount() const { return mOutChannels; }
   
-  virtual void layoutInlets() final;
-  
   //! Control in/out
-  InletRef   addInletBang  ( string identifier );
+  InletRef    addInletBang  ( string identifier );
   //! Passing optional value pointer creates a passive inlet
-  //  which won't pass changes on to receivers below
-  InletRef   addInletFloat ( string identifier, float  * f = nullptr );
-  InletRef   addInletSymbol( string identifier, t_symbol * s = nullptr );
-  
-  const vector<InletRef>& getInlets() { return mInlets; }
-  
-  //! Receivers
-  virtual void  bangReceived  ( InletRef inlet ) {}
-  virtual void  intReceived   ( InletRef inlet, long value ) {}
-  virtual void  floatReceived ( InletRef inlet, trfloat value ) {}
-  virtual void  symbolReceived( InletRef inlet, t_symbol* symbol ) {}
+  //  which won't pass changes on to receivers below. TODO: passive inlets for Max?
+  InletRef    addInletFloat ( string identifier, t_sample *f = nullptr );
+  InletRef    addInletSymbol( string identifier, t_symbol *s = nullptr );
   
   OutletRef   addOutlet( string identifier );
   
+  const vector<InletRef>&  getInlets()  { return mInlets; }
   const vector<OutletRef>& getOutlets() { return mOutlets; }
+  
+  // Do not call. Used internally
+  virtual void layoutInOuts() final;
+  
+#ifdef PD
+  t_object*   mObject; // Pointer to internal object-properties. Do not use.
+#else
+  t_pxobject* mObject; // Pointer to internal object-properties. Do not use.
+#endif
+  
+  struct _external* mParent;
   
 protected:
   
@@ -112,50 +90,72 @@ private:
   vector<OutletRef> mOutlets;
 };
 
+
 //!
-class Inlet {
-  friend RMExternal;
+#ifndef PD
+typedef void t_inlet;
+typedef void t_outlet;
+#endif
+
+struct NonCopyable {
+  NonCopyable & operator=(const NonCopyable&) = delete;
+  NonCopyable(const NonCopyable&) = delete;
+  NonCopyable() = default;
+};
+
+class Inlet : NonCopyable {
+  friend TRextern;
 public:
   ~Inlet();
   const string&   getId()   const { return mId; }
   t_symbol*       getType() const { return mType; }
 protected:
-  //! Not meant for instantation outside of main class
-  static InletRef create( void* inlet, t_symbol* type, string identifier );
-  void*  mInlet;
+  //! Meant for internal instantation only
+  static InletRef create( t_inlet* inlet, t_symbol* type, string identifier );
+  t_inlet*   mInlet;
 private:
   Inlet()    {};
   string     mId;
   t_symbol*  mType;
 };
 
-//!
-class Outlet {
-  friend RMExternal;
+class Outlet : NonCopyable {
+  friend TRextern;
 public:
   ~Outlet();
   const string  getId();
+  t_symbol*     getType() const { return mType; }
   void          sendBang();
-  void          sendFloat( float f );
+  void          sendFloat( t_sample f );
   void          sendSymbol( t_symbol *s );
   //void          sendList( t_symbol *s );
   bool          isSignal();
 protected:
-  //! Not meant for instantation outside of main class
-  static OutletRef create( void* outlet, t_symbol* type, string identifier );
+  //! Meant for internal instantation only
+  static OutletRef create( t_outlet* outlet, t_symbol* type, string identifier );
+  t_outlet*    mOutlet;
 private:
   Outlet()   {};
   string     mId;
-  void*      mOutlet;
   t_symbol*  mType;
 };
 
+//! Class dataspace
+typedef struct _external {
+#ifdef PD
+  t_object    x_obj; // Internal object-properties
+#else
+  t_pxobject  x_obj;
+  long        m_in;  // space for the inlet number used by all the proxies
+#endif
+  TRextern*   impl;
+} t_external;
 
-// Forward declarations
+
+// Forward declarations and class methods
 #ifdef PD
 void  ext_dsp( t_external *x, t_signal **sp );
 void *ext_new( t_symbol *s, int argc, t_atom *argv );
-#endif
 
 //! Bang receivers
 typedef void (*t_bangfunc) (t_external *);
@@ -182,9 +182,9 @@ static vector<t_bangfunc> bangfuncs = {
 };
 
 //! Float receivers
-typedef void (*t_floatfunc)(t_external *, trfloat);
+typedef void (*t_floatfunc)(t_external *, t_sample);
 #define addFloatFunc(num) \
-void ext_floatin_##num( t_external *x, trfloat f ) { \
+void ext_floatin_##num( t_external *x, t_sample f ) { \
   auto impl = x->impl; \
   impl->floatReceived( impl->getInlets()[num-1], f ); \
 }
@@ -228,24 +228,65 @@ static vector<t_symbolfunc> symbolfuncs = {
   ext_symbolin_6,
   ext_symbolin_7
 };
-#ifdef PD
+
 #else // Max
-void ext_dsp64(t_external *x, t_object *dsp64, short *count, double samplerate, long maxvectorsize, long flags);
-void ext_perform64(t_external *x, t_object *dsp64, double **ins, long numins, double **outs, long numouts, long sampleframes, long flags, void *userparam);
+
+InletRef inletFromProxy( t_external *x ) {
+  auto idx = proxy_getinlet((t_object *)x);
+  return x->impl->getInlets()[idx];
+}
+
+void ext_bangin( t_external *x ) {
+  auto it = inletFromProxy(x);
+  if ( it->getType() == gensym("bang") ) {
+    x->impl->bangReceived( it );
+  } else {
+    post("Inlet expects %s", it->getType()->s_name);
+  }
+}
+
+void ext_floatin( t_external *x, t_sample value ) {
+  auto it = inletFromProxy(x);
+  if ( it->getType() == gensym("float") ) {
+    x->impl->floatReceived( it, value );
+  } else {
+    post("Inlet expects %s", it->getType()->s_name);
+  }
+}
+
+void ext_intin( t_external *x, long value ) {
+  auto it = inletFromProxy(x);
+  if ( it->getType() == gensym("int") ) {
+    x->impl->intReceived( it, value );
+  } else {
+    post("Inlet expects %s", it->getType()->s_name);
+  }
+}
+
+void ext_symbolin( t_external *x, t_symbol *s ) {
+  auto it = inletFromProxy(x);
+  if ( it->getType() == gensym("symbol") ) {
+    x->impl->symbolReceived( it, s );
+  } else {
+    post("Inlet expects %s", it->getType()->s_name);
+  }
+}
+
 #endif
 
 
-//!
-//------------------------------------------------------------------------------
-RMExternal::RMExternal() : mInChannels(0), mOutChannels(0) {}
+//! TRextern Implmentation
 
 //------------------------------------------------------------------------------
-RMExternal::~RMExternal() {
+TRextern::TRextern() : mInChannels(0), mOutChannels(0) {}
+
+//------------------------------------------------------------------------------
+TRextern::~TRextern() {
   cleanup();
 }
 
 //------------------------------------------------------------------------------
-void RMExternal::setupIO( int inChannels, int outChannels ) {
+void TRextern::setupIO( int inChannels, int outChannels ) {
 #ifdef PD
   class_addmethod( m_class, (t_method)ext_dsp, gensym("dsp"), A_NULL );
 #else
@@ -265,8 +306,8 @@ void RMExternal::setupIO( int inChannels, int outChannels ) {
 }
 
 //------------------------------------------------------------------------------
-InletRef RMExternal::addInletBang( string identifier ) {
-  void* it = nullptr;
+InletRef TRextern::addInletBang( string identifier ) {
+  t_inlet* it = nullptr;
 #ifdef PD
   auto idx    = mInlets.size();
   auto symbol = gensym(("ext_bangin_" + to_string(idx+1)).c_str());
@@ -279,8 +320,8 @@ InletRef RMExternal::addInletBang( string identifier ) {
 }
 
 //------------------------------------------------------------------------------
-InletRef RMExternal::addInletFloat( string identifier, float *f ) {
-  void* it = nullptr;
+InletRef TRextern::addInletFloat( string identifier, t_sample *f ) {
+  t_inlet* it = nullptr;
 #ifdef PD
   if ( f ) {
     it = floatinlet_new( mObject, f );
@@ -297,8 +338,8 @@ InletRef RMExternal::addInletFloat( string identifier, float *f ) {
 }
 
 //------------------------------------------------------------------------------
-InletRef RMExternal::addInletSymbol( string identifier, t_symbol* s ) {
-  void* it = nullptr;
+InletRef TRextern::addInletSymbol( string identifier, t_symbol* s ) {
+  t_inlet* it = nullptr;
 #ifdef PD
   if ( s ) {
     it = symbolinlet_new( mObject, &s );
@@ -315,55 +356,59 @@ InletRef RMExternal::addInletSymbol( string identifier, t_symbol* s ) {
 }
 
 //------------------------------------------------------------------------------
-InletRef RMExternal::addInletSignal( string identifier ) {
-  void* it = nullptr;
+InletRef TRextern::addInletSignal( string identifier ) {
+  t_inlet* it = nullptr;
+  auto signal = gensym("signal");
 #ifdef PD
-  auto signal = &s_signal;
   it = inlet_new( mObject, &mObject->ob_pd, signal, signal );
-  mInlets.push_back( Inlet::create( it, signal, identifier ) );
 #else
   // Max audio inlets are empty placeholders
   // Audio inlets are created by calling dsp_setup( mObject, inChannels );
-  mInlets.push_back( Inlet::create( it, gensym("signal"), identifier ) );
 #endif
+  mInlets.push_back( Inlet::create( it, signal, identifier ) );
   return mInlets.back();
 }
 
 //! Outlets
 //------------------------------------------------------------------------------
-OutletRef RMExternal::addOutlet( string identifier ) {
+OutletRef TRextern::addOutlet( string identifier ) {
+  t_outlet* ot = nullptr;
 #ifdef PD
-  auto ot = outlet_new( mObject, gensym(identifier.c_str()) );
-#else
-  auto ot = outlet_new( mObject, identifier.c_str() );
+  ot = outlet_new( mObject, gensym( identifier.c_str()) );
 #endif
-  mOutlets.push_back( Outlet::create( ot, nullptr, identifier ) );
+  mOutlets.push_back( Outlet::create( ot, gensym("control"), identifier ) );
   return mOutlets.back();
 }
 
 //------------------------------------------------------------------------------
-OutletRef RMExternal::addOutletSignal( string identifier ) {
+OutletRef TRextern::addOutletSignal( string identifier ) {
+  t_outlet* ot = nullptr;
 #ifdef PD
-  auto ot = outlet_new( mObject, &s_signal );
-#else
-  auto ot = outlet_new( mParent, "signal" );
+  ot = outlet_new( mObject, &s_signal );
 #endif
   mOutlets.push_back( Outlet::create( ot, gensym("signal"), identifier ) );
   return mOutlets.back();
 }
 
-void RMExternal::layoutInlets() { // For Max reordering of inlets
+// Max inlet ordering is done from right to left so we need to
+// loop through and create in right order after initial setup
+void TRextern::layoutInOuts() {
 #ifndef PD
-  auto numproxies = mInlets.size() - 1;
-  for ( auto i = numproxies; 0 < i; i-- ) {
+  // Audio inlets are already constructed here so we exclude from loop
+  for ( auto i = mInlets.size(); i-- > inChannelCount() ; ) {
     auto it = mInlets[i];
     it->mInlet = proxy_new( mParent, i, &mParent->m_in );
+  }
+  
+  for ( auto i = mOutlets.size(); i-- > 0 ; ) {
+    auto ot = mOutlets[i];
+    ot->mOutlet = outlet_new( mParent, ot->getType()->s_name );
   }
 #endif
 }
 
 //------------------------------------------------------------------------------
-void RMExternal::cleanup() {
+void TRextern::cleanup() {
   post("Cleaning up");
   mInlets.clear();
   mOutlets.clear();
@@ -372,7 +417,7 @@ void RMExternal::cleanup() {
 
 //! Inlet
 //------------------------------------------------------------------------------
-InletRef Inlet::create( void* inlet, t_symbol* type, string identifier ) {
+InletRef Inlet::create( t_inlet* inlet, t_symbol* type, string identifier ) {
   auto i = new Inlet;
   i->mInlet = inlet;
   i->mType  = type;
@@ -394,7 +439,7 @@ Inlet::~Inlet() {
 
 //! Outlet
 //------------------------------------------------------------------------------
-OutletRef Outlet::create( void* outlet, t_symbol* type, string identifier ) {
+OutletRef Outlet::create( t_outlet* outlet, t_symbol* type, string identifier ) {
   auto i = new Outlet;
   i->mOutlet = outlet;
   i->mId     = identifier;
@@ -405,7 +450,7 @@ OutletRef Outlet::create( void* outlet, t_symbol* type, string identifier ) {
 //------------------------------------------------------------------------------
 Outlet::~Outlet() {
   post("Deleting outlet");
-#if PD
+#ifdef PD
   outlet_free( mOutlet );
 #else
   outlet_delete( mOutlet );
@@ -413,7 +458,7 @@ Outlet::~Outlet() {
 }
 
 const string Outlet::getId() {
-#if PD
+#ifdef PD
   return string(outlet_getsymbol(mOutlet)->s_name);
 #else
   return mId;
@@ -426,13 +471,13 @@ void Outlet::sendBang() {
 }
 
 //------------------------------------------------------------------------------
-void Outlet::sendFloat(float f) {
+void Outlet::sendFloat( t_sample f ) {
   outlet_float(mOutlet, f);
 }
 
 //------------------------------------------------------------------------------
 void Outlet::sendSymbol( t_symbol *s ) {
-#if PD
+#ifdef PD
   outlet_symbol(mOutlet, s);
 #else
 #warning TODO MAX
@@ -444,7 +489,7 @@ bool Outlet::isSignal() {
 }
 
 #ifdef PD
-//! Pd
+//! DSP routines
 //------------------------------------------------------------------------------
 t_int *ext_perform( t_int *w ) {
   size_t vIndex = 1;
@@ -454,19 +499,19 @@ t_int *ext_perform( t_int *w ) {
   auto const numIn  = impl->inChannelCount();
   auto const numOut = impl->outChannelCount();
   
-  float **const bIn = (float **)alloca(numIn * sizeof(float *));
+  t_sample **const bIn = (t_sample **)alloca(numIn * sizeof(t_sample *));
   for ( auto i = 0; i < numIn; i++ ) {
-    bIn[i] = (float *)w[i+vIndex];
+    bIn[i] = (t_sample *)w[i+vIndex];
     vIndex++;
   }
   
-  float **const bOut = (float **)alloca(numOut * sizeof(float *));
+  t_sample **const bOut = (t_sample **)alloca(numOut * sizeof(t_sample *));
   for ( auto i = 0; i < numOut; i++ ) {
-    bOut[i] = (float *)w[i+vIndex];
+    bOut[i] = (t_sample *)w[i+vIndex];
     vIndex++;
   }
   
-  impl->process( bIn, bOut, (int)w[vIndex++] /*n*/ );
+  impl->process( bIn, bOut, (long)w[vIndex++] /*n*/ );
   
   return (w+vIndex);
 }
@@ -490,15 +535,15 @@ void ext_dsp( t_external *x, t_signal **sp ) {
   v[0] = (t_int)x;
   
   // Inlets
-  size_t vIndex = 1;
-  for ( size_t i = 0; i < ins; i++ ) {
+  auto vIndex = 1;
+  for ( auto i = 0; i < ins; i++ ) {
     v[vIndex] = (t_int)sp[i]->s_vec;
     vIndex++;
   }
   
   // Signal vector is ordered according to graphical representation of
   // object so first audio outlet will come after all audio inlets
-  for ( size_t i = ins; i < numChannels; i++ ) {
+  for ( auto i = ins; i < numChannels; i++ ) {
     v[vIndex] = (t_int)sp[i]->s_vec;
     vIndex++;
   }
@@ -513,16 +558,16 @@ void ext_dsp( t_external *x, t_signal **sp ) {
 #endif
 }
 
-#else
+#else // Max
 
 //------------------------------------------------------------------------------
-void ext_perform64(t_external *x, t_object *dsp64, double **ins, long numins, double **outs, long numouts, long sampleframes, long flags, void *userparam)
+void ext_perform64(t_external *x, t_object *dsp64, t_sample **ins, long numins, t_sample **outs, long numouts, long sampleframes, long flags, void *userparam)
 {
   x->impl->process( ins, outs, sampleframes );
 }
 
 //------------------------------------------------------------------------------
-void ext_dsp64(t_external *x, t_object *dsp64, short *count, double samplerate, long maxvectorsize, long flags)
+void ext_dsp64(t_external *x, t_object *dsp64, short *count, t_sample samplerate, long maxvectorsize, long flags)
 {
   object_method(dsp64, gensym("dsp_add64"), x, ext_perform64, 0, NULL);
 }
