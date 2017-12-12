@@ -627,11 +627,11 @@ const char* tr_tildefy( string title ) {
   return title.replace( title.find(tilde), tilde.length(), "~" ).c_str();
 }
 
-#define TREXTERN_CREATE( class ) \
+#define TREXTERN_CREATE( CLASS ) \
 \
 void *ext_new( t_symbol *s, int argc, t_atom *argv ) { \
   t_external *x = ext_alloc(); \
-  x->impl = new class; \
+  x->impl = new CLASS; \
   x->impl->mObject = &x->x_obj; \
   x->impl->mParent = x; \
   x->impl->setup(argc, argv); \
@@ -641,9 +641,9 @@ void *ext_new( t_symbol *s, int argc, t_atom *argv ) { \
 \
 extern "C" __attribute__((visibility("default"))) \
 void pan_tilde_setup(void) { \
-  tr_initialise(tr_tildefy(#class)); \
+  tr_initialise(tr_tildefy(#CLASS)); \
 } \
 \
 void ext_main(void *r) { \
-  tr_initialise(tr_tildefy(#class)); \
+  tr_initialise(tr_tildefy(#CLASS)); \
 } \
