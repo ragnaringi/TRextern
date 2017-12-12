@@ -19,7 +19,7 @@
 #endif
 
 #ifdef PD
-typedef float trfloat;
+typedef float  trfloat;
 #else
 typedef double trfloat;
 #endif
@@ -30,6 +30,10 @@ using namespace std;
 static t_class* m_class;
 
 struct RMExternal;
+class Inlet;
+using InletRef  = std::shared_ptr<Inlet>;
+class Outlet;
+using OutletRef = std::shared_ptr<Outlet>;
 
 //! Class dataspace
 typedef struct _external {
@@ -47,7 +51,7 @@ typedef struct _external {
 struct RMExternal {
   public:
 #ifdef PD
-  t_object* mObject; // Pointer to internal object-properties. Do not use.
+  t_object* mObject;   // Pointer to internal object-properties. Do not use.
 #else
   t_pxobject* mObject; // Pointer to internal object-properties. Do not use.
 #endif
@@ -73,21 +77,9 @@ struct RMExternal {
   int const inChannelCount()  const { return mInChannels;  }
   int const outChannelCount() const { return mOutChannels; }
   
-  void layoutInlets() { // For Max reordering of inlets
-#ifndef PD
-    auto numproxies = mInlets.size() - 1;
-    for ( auto i = numproxies; 0 < i; i-- ) {
-      auto it = mInlets[i];
-      it->mInlet = proxy_new( mParent, i, &mParent->m_in );
-    }
-#endif
-  }
+  virtual void layoutInlets() final;
   
   //! Control in/out
-  //! Inlets
-  class Inlet;
-  using InletRef  = std::shared_ptr<Inlet>;
-  
   InletRef   addInletBang  ( string identifier );
   //! Passing optional value pointer creates a passive inlet
   //  which won't pass changes on to receivers below
@@ -102,51 +94,9 @@ struct RMExternal {
   virtual void  floatReceived ( InletRef inlet, trfloat value ) {}
   virtual void  symbolReceived( InletRef inlet, t_symbol* symbol ) {}
   
-  //! Outlets
-  class Outlet;
-  using OutletRef = std::shared_ptr<Outlet>;
-  
   OutletRef   addOutlet( string identifier );
   
   const vector<OutletRef>& getOutlets() { return mOutlets; }
-  
-  //!
-  class Inlet {
-    friend RMExternal;
-    public:
-    ~Inlet();
-    const string&   getId()   const { return mId; }
-    t_symbol*       getType() const { return mType; }
-    protected:
-    //!
-    static InletRef create( void* inlet, t_symbol* type, string identifier );
-    void*  mInlet;
-    private:
-    Inlet()    {};
-    string     mId;
-    t_symbol*  mType;
-  };
-  
-  //!
-  class Outlet {
-    friend RMExternal;
-    public:
-    ~Outlet();
-    const string  getId();
-    void          sendBang();
-    void          sendFloat( float f );
-    void          sendSymbol( t_symbol *s );
-    //void          sendList( t_symbol *s );
-    bool          isSignal();
-    protected:
-    //!
-    static OutletRef create( void* outlet, t_symbol* type, string identifier );
-    private:
-    Outlet()   {};
-    string     mId;
-    void*      mOutlet;
-    t_symbol*  mType;
-  };
   
 protected:
   
@@ -160,6 +110,44 @@ private:
   int     mOutChannels;
   vector<InletRef>  mInlets;
   vector<OutletRef> mOutlets;
+};
+
+//!
+class Inlet {
+  friend RMExternal;
+public:
+  ~Inlet();
+  const string&   getId()   const { return mId; }
+  t_symbol*       getType() const { return mType; }
+protected:
+  //! Not meant for instantation outside of main class
+  static InletRef create( void* inlet, t_symbol* type, string identifier );
+  void*  mInlet;
+private:
+  Inlet()    {};
+  string     mId;
+  t_symbol*  mType;
+};
+
+//!
+class Outlet {
+  friend RMExternal;
+public:
+  ~Outlet();
+  const string  getId();
+  void          sendBang();
+  void          sendFloat( float f );
+  void          sendSymbol( t_symbol *s );
+  //void          sendList( t_symbol *s );
+  bool          isSignal();
+protected:
+  //! Not meant for instantation outside of main class
+  static OutletRef create( void* outlet, t_symbol* type, string identifier );
+private:
+  Outlet()   {};
+  string     mId;
+  void*      mOutlet;
+  t_symbol*  mType;
 };
 
 
@@ -277,7 +265,7 @@ void RMExternal::setupIO( int inChannels, int outChannels ) {
 }
 
 //------------------------------------------------------------------------------
-RMExternal::InletRef RMExternal::addInletBang( string identifier ) {
+InletRef RMExternal::addInletBang( string identifier ) {
   void* it = nullptr;
 #ifdef PD
   auto idx    = mInlets.size();
@@ -291,7 +279,7 @@ RMExternal::InletRef RMExternal::addInletBang( string identifier ) {
 }
 
 //------------------------------------------------------------------------------
-RMExternal::InletRef RMExternal::addInletFloat( string identifier, float *f ) {
+InletRef RMExternal::addInletFloat( string identifier, float *f ) {
   void* it = nullptr;
 #ifdef PD
   if ( f ) {
@@ -309,7 +297,7 @@ RMExternal::InletRef RMExternal::addInletFloat( string identifier, float *f ) {
 }
 
 //------------------------------------------------------------------------------
-RMExternal::InletRef RMExternal::addInletSymbol( string identifier, t_symbol* s ) {
+InletRef RMExternal::addInletSymbol( string identifier, t_symbol* s ) {
   void* it = nullptr;
 #ifdef PD
   if ( s ) {
@@ -327,7 +315,7 @@ RMExternal::InletRef RMExternal::addInletSymbol( string identifier, t_symbol* s 
 }
 
 //------------------------------------------------------------------------------
-RMExternal::InletRef RMExternal::addInletSignal( string identifier ) {
+InletRef RMExternal::addInletSignal( string identifier ) {
   void* it = nullptr;
 #ifdef PD
   auto signal = &s_signal;
@@ -343,7 +331,7 @@ RMExternal::InletRef RMExternal::addInletSignal( string identifier ) {
 
 //! Outlets
 //------------------------------------------------------------------------------
-RMExternal::OutletRef RMExternal::addOutlet( string identifier ) {
+OutletRef RMExternal::addOutlet( string identifier ) {
 #ifdef PD
   auto ot = outlet_new( mObject, gensym(identifier.c_str()) );
 #else
@@ -354,7 +342,7 @@ RMExternal::OutletRef RMExternal::addOutlet( string identifier ) {
 }
 
 //------------------------------------------------------------------------------
-RMExternal::OutletRef RMExternal::addOutletSignal( string identifier ) {
+OutletRef RMExternal::addOutletSignal( string identifier ) {
 #ifdef PD
   auto ot = outlet_new( mObject, &s_signal );
 #else
@@ -362,6 +350,16 @@ RMExternal::OutletRef RMExternal::addOutletSignal( string identifier ) {
 #endif
   mOutlets.push_back( Outlet::create( ot, gensym("signal"), identifier ) );
   return mOutlets.back();
+}
+
+void RMExternal::layoutInlets() { // For Max reordering of inlets
+#ifndef PD
+  auto numproxies = mInlets.size() - 1;
+  for ( auto i = numproxies; 0 < i; i-- ) {
+    auto it = mInlets[i];
+    it->mInlet = proxy_new( mParent, i, &mParent->m_in );
+  }
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -374,7 +372,7 @@ void RMExternal::cleanup() {
 
 //! Inlet
 //------------------------------------------------------------------------------
-RMExternal::InletRef RMExternal::Inlet::create( void* inlet, t_symbol* type, string identifier ) {
+InletRef Inlet::create( void* inlet, t_symbol* type, string identifier ) {
   auto i = new Inlet;
   i->mInlet = inlet;
   i->mType  = type;
@@ -383,7 +381,7 @@ RMExternal::InletRef RMExternal::Inlet::create( void* inlet, t_symbol* type, str
 }
 
 //------------------------------------------------------------------------------
-RMExternal::Inlet::~Inlet() {
+Inlet::~Inlet() {
   post("Deleting inlet");
   if ( mInlet ) {
 #ifdef PD
@@ -396,7 +394,7 @@ RMExternal::Inlet::~Inlet() {
 
 //! Outlet
 //------------------------------------------------------------------------------
-RMExternal::OutletRef RMExternal::Outlet::create( void* outlet, t_symbol* type, string identifier ) {
+OutletRef Outlet::create( void* outlet, t_symbol* type, string identifier ) {
   auto i = new Outlet;
   i->mOutlet = outlet;
   i->mId     = identifier;
@@ -405,7 +403,7 @@ RMExternal::OutletRef RMExternal::Outlet::create( void* outlet, t_symbol* type, 
 }
 
 //------------------------------------------------------------------------------
-RMExternal::Outlet::~Outlet() {
+Outlet::~Outlet() {
   post("Deleting outlet");
 #if PD
   outlet_free( mOutlet );
@@ -414,7 +412,7 @@ RMExternal::Outlet::~Outlet() {
 #endif
 }
 
-const string RMExternal::Outlet::getId() {
+const string Outlet::getId() {
 #if PD
   return string(outlet_getsymbol(mOutlet)->s_name);
 #else
@@ -423,17 +421,17 @@ const string RMExternal::Outlet::getId() {
 }
 
 //------------------------------------------------------------------------------
-void RMExternal::Outlet::sendBang() {
+void Outlet::sendBang() {
   outlet_bang(mOutlet);
 }
 
 //------------------------------------------------------------------------------
-void RMExternal::Outlet::sendFloat(float f) {
+void Outlet::sendFloat(float f) {
   outlet_float(mOutlet, f);
 }
 
 //------------------------------------------------------------------------------
-void RMExternal::Outlet::sendSymbol( t_symbol *s ) {
+void Outlet::sendSymbol( t_symbol *s ) {
 #if PD
   outlet_symbol(mOutlet, s);
 #else
@@ -441,7 +439,7 @@ void RMExternal::Outlet::sendSymbol( t_symbol *s ) {
 #endif
 }
 
-bool RMExternal::Outlet::isSignal() {
+bool Outlet::isSignal() {
   return mType == gensym("signal");
 }
 
