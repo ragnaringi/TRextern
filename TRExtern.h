@@ -58,8 +58,8 @@ public:
   
   OutletRef   addOutlet( string identifier );
   
-  const vector<InletRef>&  getInlets()  { return mInlets; }
-  const vector<OutletRef>& getOutlets() { return mOutlets; }
+  const vector<InletRef>&  getInlets()  const { return mInlets; }
+  const vector<OutletRef>& getOutlets() const { return mOutlets; }
   
   // Do not call. Used internally
   virtual void layoutInOuts() final;
@@ -75,7 +75,7 @@ public:
 protected:
   
 private:
-  //!
+  //! Audio IO is handled internally
   InletRef   addInletSignal ( string identifier );
   OutletRef  addOutletSignal( string identifier );
   
@@ -103,8 +103,9 @@ class Inlet : NonCopyable {
   friend TRextern;
 public:
   ~Inlet();
-  const string&   getId()   const { return mId; }
-  t_symbol*       getType() const { return mType; }
+  string   const&  getId()    const { return mId; }
+  t_symbol const*  getType()  const { return mType; }
+  bool     const   isSignal() const;
 protected:
   //! Meant for internal instantation only
   static InletRef create( t_inlet* inlet, t_symbol* type, string identifier );
@@ -119,13 +120,13 @@ class Outlet : NonCopyable {
   friend TRextern;
 public:
   ~Outlet();
-  const string  getId();
-  t_symbol*     getType() const { return mType; }
-  void          sendBang();
-  void          sendFloat( t_sample f );
-  void          sendSymbol( t_symbol *s );
+  string   const  getId()    const;
+  t_symbol const* getType()  const { return mType; }
+  void            sendBang() const;
+  void            sendFloat ( t_sample f )  const;
+  void            sendSymbol( t_symbol *s ) const;
   //void          sendList( t_symbol *s );
-  bool          isSignal();
+  bool     const  isSignal() const;
 protected:
   //! Meant for internal instantation only
   static OutletRef create( t_outlet* outlet, t_symbol* type, string identifier );
@@ -142,7 +143,7 @@ typedef struct _external {
   t_object    x_obj; // Internal object-properties
 #else
   t_pxobject  x_obj;
-  long        m_in;  // space for the inlet number used by all the proxies
+  long        m_in;  // space for the inlet number used by proxies
 #endif
   TRextern*   impl;
 } t_external;
@@ -286,7 +287,7 @@ void TRextern::setupIO( int inChannels, int outChannels ) {
 #ifdef PD
   class_addmethod( m_class, (t_method)ext_dsp, gensym("dsp"), A_NULL );
 #else
-  dsp_setup( mObject, inChannels );
+  // Max dsp setup happens in layoutInOuts()
 #endif
   
   for ( auto i = 0; i < inChannels; i++ ) {
@@ -390,11 +391,16 @@ OutletRef TRextern::addOutletSignal( string identifier ) {
 // loop through and create in right order after initial setup
 void TRextern::layoutInOuts() {
 #ifndef PD
-  // Audio inlets are already constructed here so we exclude from loop
-  for ( auto i = mInlets.size(); i-- > inChannelCount() ; ) {
+  // First we set up control inlets
+  for ( auto i = mInlets.size(); i-- > 0 ; ) {
     auto it = mInlets[i];
-    it->mInlet = proxy_new( mParent, i, &mParent->m_in );
+    if ( it->isSignal() ) {
+      it->mInlet = proxy_new( mParent, i, &mParent->m_in );
+    }
   }
+ 
+  // Audio inlets. Audio inlets are always placed at the far left of an object
+  dsp_setup( mObject, inChannelCount() );
   
   for ( auto i = mOutlets.size(); i-- > 0 ; ) {
     auto ot = mOutlets[i];
@@ -433,6 +439,11 @@ Inlet::~Inlet() {
   }
 }
 
+//------------------------------------------------------------------------------
+bool const Inlet::isSignal() const {
+  return mType == gensym("signal");
+}
+
 //! Outlet
 //------------------------------------------------------------------------------
 OutletRef Outlet::create( t_outlet* outlet, t_symbol* type, string identifier ) {
@@ -453,7 +464,7 @@ Outlet::~Outlet() {
 #endif
 }
 
-const string Outlet::getId() {
+const string Outlet::getId() const {
 #ifdef PD
   return string(outlet_getsymbol(mOutlet)->s_name);
 #else
@@ -462,17 +473,17 @@ const string Outlet::getId() {
 }
 
 //------------------------------------------------------------------------------
-void Outlet::sendBang() {
+void Outlet::sendBang() const {
   outlet_bang(mOutlet);
 }
 
 //------------------------------------------------------------------------------
-void Outlet::sendFloat( t_sample f ) {
+void Outlet::sendFloat( t_sample f ) const {
   outlet_float(mOutlet, f);
 }
 
 //------------------------------------------------------------------------------
-void Outlet::sendSymbol( t_symbol *s ) {
+void Outlet::sendSymbol( t_symbol *s ) const {
 #ifdef PD
   outlet_symbol(mOutlet, s);
 #else
@@ -480,7 +491,7 @@ void Outlet::sendSymbol( t_symbol *s ) {
 #endif
 }
 
-bool Outlet::isSignal() {
+bool const Outlet::isSignal() const {
   return mType == gensym("signal");
 }
 
