@@ -32,22 +32,22 @@ public:
   virtual ~TRextern();
   
   //! Override to perfom setup
-  virtual void  setup( int argc, t_atom *argv ) {}
+  virtual void  setup( int /*argc*/, t_atom* /*argv*/ ) {}
   //! Override to free resources before exit
   virtual void  exit() {}
   //! Override to process audio
-  virtual void  process( t_sample **const inChannels, t_sample **const outChannels, long size ) {};
+  virtual void  process( t_sample **const /*inChannels*/, t_sample **const /*outChannels*/, long /*size*/ ) {};
   //! Override to receive control values from inlets
-  virtual void  bangReceived  ( InletRef inlet ) {}
-  virtual void  intReceived   ( InletRef inlet, long value ) {}
-  virtual void  floatReceived ( InletRef inlet, t_sample value ) {}
-  virtual void  symbolReceived( InletRef inlet, t_symbol* symbol ) {}
+  virtual void  bangReceived  ( InletRef /*inlet*/ ) {}
+  virtual void  intReceived   ( InletRef /*inlet*/, long /*value*/ ) {}
+  virtual void  floatReceived ( InletRef /*inlet*/, t_sample /*value*/ ) {}
+  virtual void  symbolReceived( InletRef /*inlet*/, t_symbol* /*symbol*/ ) {}
 
   // Audio in/out
   virtual void  setupIO( int inChannels, int outChannels ) final;
   
-  int const inChannelCount()  const { return mInChannels;  }
-  int const outChannelCount() const { return mOutChannels; }
+  int const& inChannelCount()  const { return mInChannels;  }
+  int const& outChannelCount() const { return mOutChannels; }
   
   //! Control in/out
   InletRef    addInletBang  ( string identifier );
@@ -105,7 +105,7 @@ public:
   ~Inlet();
   string   const&  getId()    const { return mId; }
   t_symbol const*  getType()  const { return mType; }
-  bool     const   isSignal() const;
+  bool             isSignal() const;
 protected:
   //! Meant for internal instantation only
   static InletRef create( t_inlet* inlet, t_symbol* type, string identifier );
@@ -126,7 +126,7 @@ public:
   void            sendFloat ( t_sample f )  const;
   void            sendSymbol( t_symbol *s ) const;
   //void          sendList( t_symbol *s );
-  bool     const  isSignal() const;
+  bool            isSignal() const;
 protected:
   //! Meant for internal instantation only
   static OutletRef create( t_outlet* outlet, t_symbol* type, string identifier );
@@ -440,7 +440,7 @@ Inlet::~Inlet() {
 }
 
 //------------------------------------------------------------------------------
-bool const Inlet::isSignal() const {
+bool Inlet::isSignal() const {
   return mType == gensym("signal");
 }
 
@@ -491,7 +491,7 @@ void Outlet::sendSymbol( t_symbol *s ) const {
 #endif
 }
 
-bool const Outlet::isSignal() const {
+bool Outlet::isSignal() const {
   return mType == gensym("signal");
 }
 
@@ -640,7 +640,7 @@ const char* tr_tildefy( string title ) {
 
 #define TREXTERN_CREATE( CLASS ) \
 \
-void *ext_new( t_symbol *s, int argc, t_atom *argv ) { \
+void *ext_new( t_symbol* /*s*/, int argc, t_atom *argv ) { \
   t_external *x = ext_alloc(); \
   x->impl = new CLASS; \
   x->impl->mObject = &x->x_obj; \
@@ -655,6 +655,6 @@ void pan_tilde_setup(void) { \
   tr_initialise(tr_tildefy(#CLASS)); \
 } \
 \
-void ext_main(void *r) { \
+void ext_main(void* /*r*/) { \
   tr_initialise(tr_tildefy(#CLASS)); \
 } \
