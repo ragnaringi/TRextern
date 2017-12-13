@@ -635,8 +635,13 @@ void tr_initialise( const char* title ) {
 // Replaces occurences of '_tilde' with ~
 const char* tr_tildefy( string title ) {
   static string tilde = "_tilde";
-  return title.replace( title.find(tilde), tilde.length(), "~" ).c_str();
+  if ( title.find(tilde) != std::string::npos ) {
+    title.replace( title.find(tilde), tilde.length(), "~" );
+  }
+  return title.c_str();
 }
+
+#define PD_SETUP(NAME) NAME ## _setup
 
 #define TREXTERN_CREATE( CLASS ) \
 \
@@ -651,7 +656,7 @@ void *ext_new( t_symbol* /*s*/, int argc, t_atom *argv ) { \
 } \
 \
 extern "C" __attribute__((visibility("default"))) \
-void pan_tilde_setup(void) { \
+void PD_SETUP(CLASS)(void) { \
   tr_initialise(tr_tildefy(#CLASS)); \
 } \
 \
