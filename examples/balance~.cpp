@@ -9,7 +9,7 @@
 // This is based on the [pan~] example from IOhannes m zmölnig's Pd External HOWTO
 // http://pdstatic.iem.at/externals-HOWTO/pd-externals-HOWTOse5.html#x7-290005
 
-#include "TRextern.h"
+#include "../TRextern.h"
 
 class balance_tilde : public TRextern {
 public:

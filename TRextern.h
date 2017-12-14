@@ -12,7 +12,7 @@
 #include <vector>
 #include <string>
 #ifdef PD
-#include "m_pd.h"
+#include "include/m_pd.h"
 #else
 #include "ext.h"
 #include "z_dsp.h"
