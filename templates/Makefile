@@ -1,16 +1,16 @@
 ## Pd library template version 1.0.14
 # For instructions on how to use this template, see:
 #  http://puredata.info/docs/developer/MakefileTemplate
-LIBRARY_NAME = template
+LIBRARY_NAME = __template__
 
 # add your .c source files, one object per file, to the SOURCES
 # variable, help files will be included automatically, and for GUI
 # objects, the matching .tcl file too
-SOURCES = counter.cpp
+SOURCES = __template__.cpp
 
 # list all pd objects (i.e. myobject.pd) files here, and their helpfiles will
 # be included automatically
-PDOBJECTS = mypdobject.pd
+PDOBJECTS = __template__.pd
 
 # example patches and related files, in the 'examples' subfolder
 EXAMPLES = bothtogether.pd
@@ -35,7 +35,7 @@ UNITTESTS =
 #
 #------------------------------------------------------------------------------#
 
-ALL_CFLAGS = -I"$(PD_INCLUDE)"
+ALL_CFLAGS = -I{TREXTERN_PATH} -I{TREXTERN_PATH}/dependencies
 ALL_LDFLAGS =  
 SHARED_LDFLAGS =
 ALL_LIBS = 

@@ -1,0 +1,8 @@
+
+TREXTERN_PATH = {TREXTERN_PATH} // This gets auto-filled by generate.py
+HEADER_SEARCH_PATHS = $(TREXTERN_PATH) $(TREXTERN_PATH)/dependencies
+DSTROOT = $(SRCROOT)/externals
+
+MACOSX_DEPLOYMENT_TARGET = 10.9
+
+OTHER_LDFLAGS = -undefined dynamic_lookup

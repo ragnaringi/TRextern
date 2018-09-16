@@ -9,7 +9,7 @@
 // This is based on the [counter] example from IOhannes m zmölnig's Pd External HOWTO
 // http://pdstatic.iem.at/externals-HOWTO/pd-externals-HOWTOse4.html
 
-#include "../TRextern.h"
+#include "TRextern.h"
 
 class counter : public TRextern {
 public:

@@ -1,3 +1,4 @@
 
-include/*
+dependencies/*
+examples/*/
 *.pd_darwin

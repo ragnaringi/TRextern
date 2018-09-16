@@ -12,13 +12,11 @@
 #include <vector>
 #include <string>
 #ifdef PD
-#include "include/m_pd.h"
+#include "m_pd.h"
 #else
 #include "ext.h"
 #include "z_dsp.h"
 #endif
-
-using namespace std;
 
 //! Pointer to class
 static t_class* m_class;
@@ -37,7 +35,7 @@ public:
   //! Override to free resources before exit
   virtual void  exit() {}
   //! Override to process audio
-  virtual void  process( t_sample **const /*inChannels*/, t_sample **const /*outChannels*/, long /*size*/ ) {};
+  virtual void  process( t_sample **const /*inBuffers*/, t_sample **const /*outBuffers*/, long /*size*/ ) {};
   //! Override to receive control values from inlets
   virtual void  bangReceived  ( InletRef /*inlet*/ ) {}
   virtual void  intReceived   ( InletRef /*inlet*/, long /*value*/ ) {}
@@ -51,16 +49,16 @@ public:
   int const& outChannelCount() const { return mOutChannels; }
   
   //! Control in/out
-  InletRef    addInletBang  ( string identifier );
+  InletRef    addInletBang  ( std::string identifier );
   //! Passing optional value pointer creates a passive inlet
   //  which won't pass changes on to receivers below. TODO: passive inlets for Max?
-  InletRef    addInletFloat ( string identifier, t_sample *f = nullptr );
-  InletRef    addInletSymbol( string identifier, t_symbol *s = nullptr );
+  InletRef    addInletFloat ( std::string identifier, t_sample *f = nullptr );
+  InletRef    addInletSymbol( std::string identifier, t_symbol *s = nullptr );
   
-  OutletRef   addOutlet( string identifier );
+  OutletRef   addOutlet( std::string identifier );
   
-  const vector<InletRef>&  getInlets()  const { return mInlets; }
-  const vector<OutletRef>& getOutlets() const { return mOutlets; }
+  const std::vector<InletRef>&  getInlets()  const { return mInlets; }
+  const std::vector<OutletRef>& getOutlets() const { return mOutlets; }
   
   // Do not call. Used internally
   virtual void layoutInOuts() final;
@@ -77,14 +75,14 @@ protected:
   
 private:
   //! Audio IO is handled internally
-  InletRef   addInletSignal ( string identifier );
-  OutletRef  addOutletSignal( string identifier );
+  InletRef   addInletSignal ( std::string identifier );
+  OutletRef  addOutletSignal( std::string identifier );
   
   void    cleanup();
   int     mInChannels;
   int     mOutChannels;
-  vector<InletRef>  mInlets;
-  vector<OutletRef> mOutlets;
+  std::vector<InletRef>  mInlets;
+  std::vector<OutletRef> mOutlets;
 };
 
 
@@ -104,16 +102,16 @@ class Inlet : NonCopyable {
   friend TRextern;
 public:
   ~Inlet();
-  string   const&  getId()    const { return mId; }
+  std::string   const&  getId()    const { return mId; }
   t_symbol const*  getType()  const { return mType; }
   bool             isSignal() const;
 protected:
   //! Meant for internal instantation only
-  static InletRef create( t_inlet* inlet, t_symbol* type, string identifier );
+  static InletRef create( t_inlet* inlet, t_symbol* type, std::string identifier );
   t_inlet*   mInlet;
 private:
   Inlet()    {};
-  string     mId;
+  std::string     mId;
   t_symbol*  mType;
 };
 
@@ -121,7 +119,7 @@ class Outlet : NonCopyable {
   friend TRextern;
 public:
   ~Outlet();
-  string   const  getId()    const;
+  std::string   const  getId()    const;
   t_symbol const* getType()  const { return mType; }
   void            sendBang() const;
   void            sendFloat ( t_sample f )  const;
@@ -130,11 +128,11 @@ public:
   bool            isSignal() const;
 protected:
   //! Meant for internal instantation only
-  static OutletRef create( t_outlet* outlet, t_symbol* type, string identifier );
+  static OutletRef create( t_outlet* outlet, t_symbol* type, std::string identifier );
   t_outlet*    mOutlet;
 private:
   Outlet()   {};
-  string     mId;
+  std::string     mId;
   t_symbol*  mType;
 };
 
@@ -169,7 +167,7 @@ addBangFunc(4)
 addBangFunc(5)
 addBangFunc(6)
 addBangFunc(7)
-static vector<t_bangfunc> bangfuncs = {
+static std::vector<t_bangfunc> bangfuncs = {
   ext_bangin_1,
   ext_bangin_2,
   ext_bangin_3,
@@ -193,7 +191,7 @@ addFloatFunc(4)
 addFloatFunc(5)
 addFloatFunc(6)
 addFloatFunc(7)
-static vector<t_floatfunc> floatfuncs = {
+static std::vector<t_floatfunc> floatfuncs = {
   ext_floatin_1,
   ext_floatin_2,
   ext_floatin_3,
@@ -217,7 +215,7 @@ addSymbolFunc(4)
 addSymbolFunc(5)
 addSymbolFunc(6)
 addSymbolFunc(7)
-static vector<t_symbolfunc> symbolfuncs = {
+static std::vector<t_symbolfunc> symbolfuncs = {
   ext_symbolin_1,
   ext_symbolin_2,
   ext_symbolin_3,
@@ -304,11 +302,11 @@ void TRextern::setupIO( int inChannels, int outChannels ) {
 }
 
 //------------------------------------------------------------------------------
-InletRef TRextern::addInletBang( string identifier ) {
+InletRef TRextern::addInletBang( std::string identifier ) {
   t_inlet* it = nullptr;
 #ifdef PD
   auto idx    = mInlets.size();
-  auto symbol = gensym(("ext_bangin_" + to_string(idx+1)).c_str());
+  auto symbol = gensym(("ext_bangin_" + std::to_string(idx+1)).c_str());
   auto func   = (t_method)bangfuncs[idx];
   class_addmethod( m_class, func, symbol, A_NULL );
   it = inlet_new( mObject, &mObject->ob_pd, &s_bang, symbol );
@@ -318,14 +316,14 @@ InletRef TRextern::addInletBang( string identifier ) {
 }
 
 //------------------------------------------------------------------------------
-InletRef TRextern::addInletFloat( string identifier, t_sample *f ) {
+InletRef TRextern::addInletFloat( std::string identifier, t_sample *f ) {
   t_inlet* it = nullptr;
 #ifdef PD
   if ( f ) {
     it = floatinlet_new( mObject, f );
   } else {
     auto idx    = mInlets.size();
-    auto symbol = gensym(("ext_floatin_" + to_string(idx+1)).c_str());
+    auto symbol = gensym(("ext_floatin_" + std::to_string(idx+1)).c_str());
     auto func   = (t_method)floatfuncs[idx];
     class_addmethod( m_class, func, symbol, A_FLOAT, A_NULL );
     it = inlet_new( mObject, &mObject->ob_pd, &s_float, symbol );
@@ -336,14 +334,14 @@ InletRef TRextern::addInletFloat( string identifier, t_sample *f ) {
 }
 
 //------------------------------------------------------------------------------
-InletRef TRextern::addInletSymbol( string identifier, t_symbol* s ) {
+InletRef TRextern::addInletSymbol( std::string identifier, t_symbol* s ) {
   t_inlet* it = nullptr;
 #ifdef PD
   if ( s ) {
     it = symbolinlet_new( mObject, &s );
   } else {
     auto idx    = mInlets.size();
-    auto symbol = gensym(("ext_symbolin_" + to_string(idx+1)).c_str());
+    auto symbol = gensym(("ext_symbolin_" + std::to_string(idx+1)).c_str());
     auto func   = (t_method)symbolfuncs[idx];
     class_addmethod( m_class, func, symbol, A_SYMBOL, A_NULL );
     it = inlet_new( mObject, &mObject->ob_pd, &s_symbol, symbol );
@@ -354,7 +352,7 @@ InletRef TRextern::addInletSymbol( string identifier, t_symbol* s ) {
 }
 
 //------------------------------------------------------------------------------
-InletRef TRextern::addInletSignal( string identifier ) {
+InletRef TRextern::addInletSignal( std::string identifier ) {
   t_inlet* it = nullptr;
   auto signal = gensym("signal");
 #ifdef PD
@@ -369,7 +367,7 @@ InletRef TRextern::addInletSignal( string identifier ) {
 
 //! Outlets
 //------------------------------------------------------------------------------
-OutletRef TRextern::addOutlet( string identifier ) {
+OutletRef TRextern::addOutlet( std::string identifier ) {
   t_outlet* ot = nullptr;
 #ifdef PD
   ot = outlet_new( mObject, gensym( identifier.c_str()) );
@@ -379,7 +377,7 @@ OutletRef TRextern::addOutlet( string identifier ) {
 }
 
 //------------------------------------------------------------------------------
-OutletRef TRextern::addOutletSignal( string identifier ) {
+OutletRef TRextern::addOutletSignal( std::string identifier ) {
   t_outlet* ot = nullptr;
 #ifdef PD
   ot = outlet_new( mObject, &s_signal );
@@ -420,7 +418,7 @@ void TRextern::cleanup() {
 
 //! Inlet
 //------------------------------------------------------------------------------
-InletRef Inlet::create( t_inlet* inlet, t_symbol* type, string identifier ) {
+InletRef Inlet::create( t_inlet* inlet, t_symbol* type, std::string identifier ) {
   auto i = new Inlet;
   i->mInlet = inlet;
   i->mType  = type;
@@ -447,7 +445,7 @@ bool Inlet::isSignal() const {
 
 //! Outlet
 //------------------------------------------------------------------------------
-OutletRef Outlet::create( t_outlet* outlet, t_symbol* type, string identifier ) {
+OutletRef Outlet::create( t_outlet* outlet, t_symbol* type, std::string identifier ) {
   auto i = new Outlet;
   i->mOutlet = outlet;
   i->mId     = identifier;
@@ -465,9 +463,9 @@ Outlet::~Outlet() {
 #endif
 }
 
-const string Outlet::getId() const {
+const std::string Outlet::getId() const {
 #ifdef PD
-  return string(outlet_getsymbol(mOutlet)->s_name);
+  return std::string(outlet_getsymbol(mOutlet)->s_name);
 #else
   return mId;
 #endif
@@ -634,8 +632,8 @@ void tr_initialise( const char* title ) {
 }
 
 // Replaces occurences of '_tilde' with ~
-const char* tr_tildefy( string title ) {
-  static string tilde = "_tilde";
+const char* tr_tildefy( std::string title ) {
+  static std::string tilde = "_tilde";
   if ( title.find(tilde) != std::string::npos ) {
     title.replace( title.find(tilde), tilde.length(), "~" );
   }
