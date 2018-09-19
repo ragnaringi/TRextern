@@ -486,7 +486,7 @@ void Outlet::sendSymbol( t_symbol *s ) const {
 #ifdef PD
   outlet_symbol(mOutlet, s);
 #else
-#warning TODO MAX
+#pragma message("TODO MAX")
 #endif
 }
 
@@ -621,7 +621,7 @@ void tr_initialise( const char* title ) {
   class_addmethod(m_class, (method)ext_symbolin,"symbol", A_SYM, 0);
   //  class_addmethod(m_class, (method)ext_list,     "list", A_GIMME, 0);
   //  class_addmethod(m_class, (method)ext_anything, "anything", A_GIMME, 0);
-#warning TODO MAX
+#pragma message("TODO MAX")
   // TODO: Support for non DSP objects
   // If dsp
   class_addmethod(m_class, (method)ext_dsp64, "dsp64",  A_CANT, 0);
