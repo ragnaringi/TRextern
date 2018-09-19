@@ -598,23 +598,22 @@ void ext_free( t_external *x ) {
 }
 
 //------------------------------------------------------------------------------
-void tr_initialise( const char* title ) {
+
+// Replaces occurences of '_tilde' with ~
+const char* tr_tildefy( std::string title ) {
+  static std::string tilde = "_tilde";
+  if ( title.find(tilde) != std::string::npos ) {
+    title.replace( title.find(tilde), tilde.length(), "~" );
+  }
+  return title.c_str();
+}
+
 #ifdef PD
-  m_class = class_new(gensym(title),
-                      (t_newmethod)ext_new,
-                      (t_method)ext_free,
-                      sizeof(t_external),
-                      CLASS_NOINLET,
-                      A_GIMME,
-                      A_NULL);
+#define PD_SETUP(NAME) NAME ## _setup
+#define TREXTERN_CREATE( CLASS ) TREXTERN_CREATE_PD( CLASS )
 #else
-  m_class = class_new(title,
-                      (method)ext_new,
-                      (method)ext_free,
-                      sizeof(t_external),
-                      0L,
-                      A_GIMME,
-                      0);
+#define TREXTERN_CREATE( CLASS ) TREXTERN_CREATE_MAX( CLASS )
+void tr_initialise_max() {
   class_addmethod(m_class, (method)ext_bangin,  "bang", 0);
   class_addmethod(m_class, (method)ext_floatin, "float",  A_FLOAT, 0);
   class_addmethod(m_class, (method)ext_intin,   "int",    A_LONG, 0);
@@ -628,21 +627,10 @@ void tr_initialise( const char* title ) {
   class_dspinit(m_class);
   // endif
   class_register(CLASS_BOX, m_class);
+}
 #endif
-}
 
-// Replaces occurences of '_tilde' with ~
-const char* tr_tildefy( std::string title ) {
-  static std::string tilde = "_tilde";
-  if ( title.find(tilde) != std::string::npos ) {
-    title.replace( title.find(tilde), tilde.length(), "~" );
-  }
-  return title.c_str();
-}
-
-#define PD_SETUP(NAME) NAME ## _setup
-
-#define TREXTERN_CREATE( CLASS ) \
+#define TREXTERN_NEW( CLASS ) \
 \
 void *ext_new( t_symbol* /*s*/, int argc, t_atom *argv ) { \
   t_external *x = ext_alloc(); \
@@ -653,12 +641,35 @@ void *ext_new( t_symbol* /*s*/, int argc, t_atom *argv ) { \
   x->impl->layoutInOuts(); \
   return (x); \
 } \
+
+#define TREXTERN_CREATE_PD( CLASS ) \
+\
+TREXTERN_NEW( CLASS ) \
 \
 extern "C" __attribute__((visibility("default"))) \
 void PD_SETUP(CLASS)(void) { \
-  tr_initialise(tr_tildefy(#CLASS)); \
+  auto title = tr_tildefy(#CLASS); \
+  m_class = class_new(gensym(title), \
+                      (t_newmethod)ext_new, \
+                      (t_method)ext_free, \
+                      sizeof(t_external), \
+                      CLASS_NOINLET, \
+                      A_GIMME, \
+                      A_NULL); \
 } \
+
+#define TREXTERN_CREATE_MAX( CLASS ) \
+\
+TREXTERN_NEW( CLASS ) \
 \
 void ext_main(void* /*r*/) { \
-  tr_initialise(tr_tildefy(#CLASS)); \
+  auto title = tr_tildefy(#CLASS); \
+  m_class = class_new(title, \
+                    (method)ext_new, \
+                    (method)ext_free, \
+                    sizeof(t_external), \
+                    0L, \
+                    A_GIMME, \
+                    0); \
+  tr_initialise_max(); \
 } \
