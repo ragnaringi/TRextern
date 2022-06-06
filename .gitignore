@@ -2,3 +2,4 @@
 dependencies/*
 examples/*/
 *.pd_darwin
+.DS_Store
