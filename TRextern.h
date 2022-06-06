@@ -598,23 +598,24 @@ void ext_free( t_external *x ) {
 }
 
 //------------------------------------------------------------------------------
-void tr_initialise( const char* title ) {
+void tr_initialise (std::string title )
+{
 #ifdef PD
-  m_class = class_new(gensym(title),
-                      (t_newmethod)ext_new,
-                      (t_method)ext_free,
-                      sizeof(t_external),
-                      CLASS_NOINLET,
-                      A_GIMME,
-                      A_NULL);
+    m_class = class_new (gensym (title.c_str()),
+                         (t_newmethod)ext_new,
+                         (t_method)ext_free,
+                         sizeof (t_external),
+                         CLASS_NOINLET,
+                         A_GIMME,
+                         A_NULL);
 #else
-  m_class = class_new(title,
-                      (method)ext_new,
-                      (method)ext_free,
-                      sizeof(t_external),
-                      0L,
-                      A_GIMME,
-                      0);
+  m_class = class_new (title,
+                       (method)ext_new,
+                       (method)ext_free,
+                       sizeof (t_external),
+                       0L,
+                       A_GIMME,
+                       0);
   class_addmethod(m_class, (method)ext_bangin,  "bang", 0);
   class_addmethod(m_class, (method)ext_floatin, "float",  A_FLOAT, 0);
   class_addmethod(m_class, (method)ext_intin,   "int",    A_LONG, 0);
@@ -632,12 +633,14 @@ void tr_initialise( const char* title ) {
 }
 
 // Replaces occurences of '_tilde' with ~
-const char* tr_tildefy( std::string title ) {
-  static std::string tilde = "_tilde";
-  if ( title.find(tilde) != std::string::npos ) {
-    title.replace( title.find(tilde), tilde.length(), "~" );
-  }
-  return title.c_str();
+std::string tr_tildefy (std::string title)
+{
+    static std::string tilde ("_tilde");
+    
+    if (title.find (tilde) != std::string::npos)
+        title.replace (title.find (tilde), tilde.length(), "~" );
+
+    return title;
 }
 
 #define PD_SETUP(NAME) NAME ## _setup
