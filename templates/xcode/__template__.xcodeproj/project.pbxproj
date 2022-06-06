@@ -7,8 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		C06B4C281FE18B3800E720DC /* __template__.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C06B4C271FE18B3800E720DC /* __template__.cpp */; };
-		C06B4C291FE18B3800E720DC /* __template__.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C06B4C271FE18B3800E720DC /* __template__.cpp */; };
+		C06B4C281FE18B3800E720DC /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C06B4C271FE18B3800E720DC /* main.cpp */; };
+		C06B4C291FE18B3800E720DC /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C06B4C271FE18B3800E720DC /* main.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -17,7 +17,7 @@
 		C020F4F51FDAE16D00CF2453 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		C03B820D214C52170016C0BF /* pd.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; path = pd.xcconfig; sourceTree = "<group>"; };
 		C06B4C221FE01B0800E720DC /* __template__.pd_darwin */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = __template__.pd_darwin; sourceTree = BUILT_PRODUCTS_DIR; };
-		C06B4C271FE18B3800E720DC /* __template__.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = __template__.cpp; path = ../__template__.cpp; sourceTree = "<group>"; };
+		C06B4C271FE18B3800E720DC /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = main.cpp; path = ../main.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -44,7 +44,7 @@
 				C020F4F51FDAE16D00CF2453 /* Info.plist */,
 				22CF10220EE984600054F513 /* max.xcconfig */,
 				C03B820D214C52170016C0BF /* pd.xcconfig */,
-				C06B4C271FE18B3800E720DC /* __template__.cpp */,
+				C06B4C271FE18B3800E720DC /* main.cpp */,
 				19C28FB4FE9D528D11CA2CBB /* Products */,
 			);
 			name = iterator;
@@ -121,11 +121,11 @@
 		089C1669FE841209C02AAC07 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0940;
+				LastUpgradeCheck = 1310;
 				TargetAttributes = {
 					C06B4C211FE01B0800E720DC = {
 						CreatedOnToolsVersion = 9.1;
-						DevelopmentTeam = J96W95JQUZ;
+						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -175,7 +175,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C06B4C281FE18B3800E720DC /* __template__.cpp in Sources */,
+				C06B4C281FE18B3800E720DC /* main.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -183,7 +183,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C06B4C291FE18B3800E720DC /* __template__.cpp in Sources */,
+				C06B4C291FE18B3800E720DC /* main.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -206,6 +206,7 @@
 				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
 				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
 				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
@@ -240,6 +241,7 @@
 				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
 				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
 				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
@@ -317,7 +319,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = J96W95JQUZ;
+				DEVELOPMENT_TEAM = "";
 				DSTROOT = "$(SRCROOT)/build";
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -340,6 +342,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				M_PD_PATH = ../../dependencies;
@@ -388,7 +391,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = J96W95JQUZ;
+				DEVELOPMENT_TEAM = "";
 				DSTROOT = "$(SRCROOT)/build";
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -405,6 +408,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				M_PD_PATH = ../../dependencies;
